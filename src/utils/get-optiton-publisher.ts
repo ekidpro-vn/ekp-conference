@@ -32,7 +32,7 @@ export function getOptionPublisherByRole(role: string) {
         audioSource: undefined,
         videoSource: undefined,
         publishAudio: true,
-        publishVideo: false,
+        publishVideo: true,
         resolution: "640x480",
         frameRate: 30,
         insertMode: "APPEND",
