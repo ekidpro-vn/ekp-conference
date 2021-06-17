@@ -1,7 +1,8 @@
-import Conference from './conference'
+import Conference from "./conference";
+export * from "./conference.type";
+
+export default Conference;
+
 export function sayHello(name: string): string {
-  return `Hello ${name}`
+  return `Conference: Hello ${name}`;
 }
-
-
-export default Conference
