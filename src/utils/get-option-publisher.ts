@@ -9,7 +9,7 @@
 //     mirror: false // Whether to mirror your local video or not
 //   }
 
-export function getOptionPublisherByRole(role: string) {
+export function getOptionPublisherByRole(role: string, option?: { camera?: boolean; audio?: boolean }) {
   const roleUpper = role.toUpperCase();
   switch (roleUpper) {
     case "OPERATOR_MANAGEMENT":
@@ -20,6 +20,32 @@ export function getOptionPublisherByRole(role: string) {
         videoSource: false,
         publishAudio: true,
         publishVideo: false,
+        resolution: "640x480",
+        frameRate: 30,
+        insertMode: "APPEND",
+        mirror: false,
+      };
+    }
+
+    case "STUDENT": {
+      return {
+        audioSource: undefined,
+        videoSource: option?.camera,
+        publishAudio: true,
+        publishVideo: true,
+        resolution: "640x480",
+        frameRate: 30,
+        insertMode: "APPEND",
+        mirror: false,
+      };
+    }
+
+    case "TEACHER": {
+      return {
+        audioSource: undefined,
+        videoSource: option?.camera,
+        publishAudio: true,
+        publishVideo: true,
         resolution: "640x480",
         frameRate: 30,
         insertMode: "APPEND",
