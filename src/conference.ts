@@ -2,7 +2,7 @@ import { OpenVidu, Session, Subscriber, Publisher, StreamEvent, Stream } from "o
 import { checkPublishByRole } from "./utils/check-publish-conference";
 import { Events } from "./utils/events";
 import { IUser, Actions, IEventStream } from "./conference.type";
-import { getOptionPublisherByRole } from "./utils/get-optiton-publisher";
+import { getOptionPublisherByRole } from "./utils/get-option-publisher";
 
 const configAdvanced = {
   publisherSpeakingEventsOptions: {
@@ -31,10 +31,15 @@ class Conference {
     this.userInfo = params.userInfo;
   }
 
-  start() {
+  start = async () => {
     if (!this.userInfo || !this.token || this.session) {
       return;
     }
+
+    const devices = await this.openVidu.getDevices();
+    const videoDevice = devices.filter((i) => i.kind === "videoinput");
+    const publishOption = getOptionPublisherByRole(this.userInfo.role, { camera: videoDevice.length > 0 });
+
     this.session = this.openVidu.initSession();
     this.session.on("streamCreated", (e) => {
       const event = e as StreamEvent;
@@ -52,6 +57,7 @@ class Conference {
           const push: IEventStream = { info: data, stream: subscriber };
           this.events.emit(Actions.ADD_STREAM, push);
         } catch (error) {
+          this.events.emit(Actions.CONNECT_ERROR, { message: error.message });
           console.error("streamCreated: ", error);
         }
       }
@@ -80,14 +86,16 @@ class Conference {
 
         if (this.userInfo && this.session) {
           if (checkPublishByRole(this.userInfo.role)) {
-            this.publisher = this.openVidu.initPublisher("", getOptionPublisherByRole(this.userInfo.role));
-            this.session
-              .publish(this.publisher)
-              .then(() => {
-                if (this.userInfo && this.publisher) {
-                  const push: IEventStream = { info: this.userInfo, stream: this.publisher };
-                  this.events.emit(Actions.ADD_STREAM, push);
-                }
+            this.openVidu
+              .initPublisherAsync("", publishOption)
+              .then((publisher) => {
+                this.publisher = publisher;
+                this.session?.publish(this.publisher).then(() => {
+                  if (this.userInfo && this.publisher) {
+                    const push: IEventStream = { info: this.userInfo, stream: this.publisher };
+                    this.events.emit(Actions.ADD_STREAM, push);
+                  }
+                });
               })
               .catch((error) => {
                 this.events.emit(Actions.PUBLISH_ERROR, { message: error.message });
@@ -98,28 +106,34 @@ class Conference {
       .catch((error) => {
         this.events.emit(Actions.CONNECT_ERROR, { message: error.message });
       });
-  }
+  };
 
-  retryPublish() {
+  retryPublish = async () => {
     if (this.userInfo && this.session) {
       if (checkPublishByRole(this.userInfo.role)) {
-        this.publisher = this.openVidu.initPublisher("", getOptionPublisherByRole(this.userInfo.role));
-        this.session
-          .publish(this.publisher)
-          .then(() => {
-            if (this.userInfo && this.publisher) {
-              const push: IEventStream = { info: this.userInfo, stream: this.publisher };
-              this.events.emit(Actions.ADD_STREAM, push);
-            }
+        const devices = await this.openVidu.getDevices();
+        const videoDevice = devices.filter((i) => i.kind === "videoinput");
+        const publishOption = getOptionPublisherByRole(this.userInfo.role, { camera: videoDevice.length > 0 });
+
+        this.openVidu
+          .initPublisherAsync("", publishOption)
+          .then((publisher) => {
+            this.publisher = publisher;
+            this.session?.publish(this.publisher).then(() => {
+              if (this.userInfo && this.publisher) {
+                const push: IEventStream = { info: this.userInfo, stream: this.publisher };
+                this.events.emit(Actions.ADD_STREAM, push);
+              }
+            });
           })
           .catch((error) => {
             this.events.emit(Actions.PUBLISH_ERROR, { message: error.message });
           });
       }
     }
-  }
+  };
 
-  close() {
+  close = () => {
     if (!this.session) {
       return;
     }
@@ -127,27 +141,27 @@ class Conference {
     this.session = undefined;
     this.publisher = undefined;
     this.subscribers = [];
-  }
+  };
 
-  muteAudio(val: boolean) {
+  muteAudio = (val: boolean) => {
     const publisher = this.publisher;
     if (publisher) {
       publisher.publishAudio(val);
     }
-  }
+  };
 
-  muteVideo(val: boolean) {
+  muteVideo = (val: boolean) => {
     const publisher = this.publisher;
     if (publisher) {
       publisher.publishVideo(val);
     }
-  }
+  };
 
   updateToken = (token: string) => {
     this.token = token;
   };
 
-  getUserInfo(stream: Stream): IUser | null {
+  getUserInfo = (stream: Stream): IUser | null => {
     const connectionData = stream.connection.data;
     const clientData = connectionData.split("%/%");
     try {
@@ -155,11 +169,11 @@ class Conference {
         return null;
       }
       const userInfo = JSON.parse(clientData[0]);
-      return userInfo
+      return userInfo;
     } catch (error) {
       return null;
     }
-  }
+  };
 }
 
 export default new Conference();
