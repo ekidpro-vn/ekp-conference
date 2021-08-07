@@ -13,26 +13,37 @@ const configAdvanced = {
 
 class Conference {
   events = new Events();
-  openVidu: OpenVidu;
+  openVidu?: OpenVidu;
   session?: Session;
   subscribers: Subscriber[] = [];
   publisher?: Publisher;
   userInfo?: IUser;
   token?: string;
 
-  constructor() {
-    this.openVidu = new OpenVidu();
-    this.openVidu.enableProdMode();
-    this.openVidu.setAdvancedConfiguration(configAdvanced);
-  }
+  constructor() {}
 
   init(params: { token: string; userInfo: IUser }) {
+    this.initConference();
     this.token = params.token;
     this.userInfo = params.userInfo;
   }
 
+  initConference = () => {
+    this.openVidu = new OpenVidu();
+    this.openVidu.enableProdMode();
+    this.openVidu.setAdvancedConfiguration(configAdvanced);
+  };
+
   start = async () => {
     if (!this.userInfo || !this.token || this.session) {
+      return;
+    }
+
+    if (!this.openVidu) {
+      this.initConference();
+    }
+
+    if (!this.openVidu) {
       return;
     }
 
@@ -84,7 +95,7 @@ class Conference {
       .then(() => {
         this.events.emit(Actions.CONNECT_SUCCESS, { message: "Join room..." });
 
-        if (this.userInfo && this.session) {
+        if (this.userInfo && this.session && this.openVidu) {
           if (checkPublishByRole(this.userInfo.role)) {
             this.openVidu
               .initPublisherAsync("", publishOption)
@@ -109,7 +120,11 @@ class Conference {
   };
 
   retryPublish = async () => {
-    if (this.userInfo && this.session) {
+    if (!this.openVidu){
+      this.initConference()
+    }
+
+    if (this.userInfo && this.session && this.openVidu) {
       if (checkPublishByRole(this.userInfo.role)) {
         const devices = await this.openVidu.getDevices();
         const videoDevice = devices.filter((i) => i.kind === "videoinput");
@@ -169,6 +184,9 @@ class Conference {
         return null;
       }
       const userInfo = JSON.parse(clientData[0]);
+      if (userInfo && typeof userInfo.userId !== "number") {
+        userInfo.userId = parseInt(userInfo.userId, 10);
+      }
       return userInfo;
     } catch (error) {
       return null;
