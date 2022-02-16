@@ -1,4 +1,4 @@
-import Conference, { ConfigConference } from "./conference";
+import Conference from "./conference";
 export * from "./conference.type";
 export default Conference;
 
