@@ -8,18 +8,13 @@ import {
 } from "openvidu-browser";
 import { checkPublishByRole } from "./utils/check-publish-conference";
 import { Events } from "./utils/events";
-import { IUser, Actions, IEventStream } from "./conference.type";
+import {
+  IUser,
+  Actions,
+  IEventStream,
+  ConfigConference,
+} from "./conference.type";
 import { getOptionPublisherByRole } from "./utils/get-option-publisher";
-
-export interface ConfigConference {
-  public: boolean;
-  publicConfig?: {
-    audioSource?: boolean;
-    videoSource?: boolean;
-    publishAudio?: boolean;
-    publishVideo?: boolean;
-  };
-}
 
 const configAdvanced = {
   publisherSpeakingEventsOptions: {
@@ -145,7 +140,10 @@ class Conference {
             typeof this.config.publicConfig !== "undefined"
           ) {
             this.openVidu
-              .initPublisherAsync("", this.config.publicConfig)
+              .initPublisherAsync("", {
+                ...this.config.publicConfig,
+                ...this.configDefault,
+              })
               .then((publisher) => {
                 this.publisher = publisher;
                 this.session?.publish(this.publisher).then(() => {
@@ -189,7 +187,10 @@ class Conference {
         // });
 
         this.openVidu
-          .initPublisherAsync("", this.config.publicConfig)
+          .initPublisherAsync("", {
+            ...this.config.publicConfig,
+            ...this.configDefault,
+          })
           .then((publisher) => {
             this.publisher = publisher;
             this.session?.publish(this.publisher).then(() => {

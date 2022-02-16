@@ -19,3 +19,13 @@ export interface IEventStream {
   info: IUser;
   stream: Publisher | Subscriber;
 }
+
+export interface ConfigConference {
+  public: boolean;
+  publicConfig?: {
+    audioSource?: boolean;
+    videoSource?: boolean;
+    publishAudio?: boolean;
+    publishVideo?: boolean;
+  };
+}
