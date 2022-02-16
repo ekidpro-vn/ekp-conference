@@ -53,6 +53,9 @@ class Conference {
   };
 
   initConference = () => {
+    if (this.openVidu) {
+      return;
+    }
     this.openVidu = new OpenVidu();
     this.openVidu.enableProdMode();
     this.openVidu.setAdvancedConfiguration(configAdvanced);
