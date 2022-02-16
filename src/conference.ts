@@ -1,8 +1,25 @@
-import { OpenVidu, Session, Subscriber, Publisher, StreamEvent, Stream } from "openvidu-browser";
+import {
+  OpenVidu,
+  Session,
+  Subscriber,
+  Publisher,
+  StreamEvent,
+  Stream,
+} from "openvidu-browser";
 import { checkPublishByRole } from "./utils/check-publish-conference";
 import { Events } from "./utils/events";
 import { IUser, Actions, IEventStream } from "./conference.type";
 import { getOptionPublisherByRole } from "./utils/get-option-publisher";
+
+export interface ConfigConference {
+  public: boolean;
+  publicConfig?: {
+    audioSource?: boolean;
+    videoSource?: boolean;
+    publishAudio?: boolean;
+    publishVideo?: boolean;
+  };
+}
 
 const configAdvanced = {
   publisherSpeakingEventsOptions: {
@@ -13,20 +30,32 @@ const configAdvanced = {
 
 class Conference {
   events = new Events();
-  openVidu?: OpenVidu;
+  public openVidu?: OpenVidu;
   session?: Session;
   subscribers: Subscriber[] = [];
   publisher?: Publisher;
   userInfo?: IUser;
   token?: string;
+  config?: ConfigConference;
+  configDefault = {
+    resolution: "640x480",
+    frameRate: 30,
+    insertMode: "APPEND",
+    mirror: false,
+  };
 
   constructor() {}
 
-  init(params: { token: string; userInfo: IUser }) {
+  init(params: { token: string; userInfo: IUser; config?: ConfigConference }) {
     this.initConference();
     this.token = params.token;
     this.userInfo = params.userInfo;
+    this.config = this.config;
   }
+
+  updateToken = (token: string) => {
+    this.token = token;
+  };
 
   initConference = () => {
     this.openVidu = new OpenVidu();
@@ -47,9 +76,11 @@ class Conference {
       return;
     }
 
-    const devices = await this.openVidu.getDevices();
-    const videoDevice = devices.filter((i) => i.kind === "videoinput");
-    const publishOption = getOptionPublisherByRole(this.userInfo.role, { camera: videoDevice.length > 0 });
+    // const devices = await this.openVidu.getDevices();
+    // const videoDevice = devices.filter((i) => i.kind === "videoinput");
+    // const publishOption = getOptionPublisherByRole(this.userInfo.role, {
+    //   camera: videoDevice.length > 0,
+    // });
 
     this.session = this.openVidu.initSession();
     this.session.on("streamCreated", (e) => {
@@ -63,7 +94,10 @@ class Conference {
           if (!this.session) {
             return;
           }
-          const subscriber = this.session.subscribe((event as StreamEvent).stream, `${data.userId}_${data.role}`);
+          const subscriber = this.session.subscribe(
+            (event as StreamEvent).stream,
+            `${data.userId}_${data.role}`
+          );
           this.subscribers.push(subscriber);
           const push: IEventStream = { info: data, stream: subscriber };
           this.events.emit(Actions.ADD_STREAM, push);
@@ -79,11 +113,17 @@ class Conference {
       const clientData = connectionData.split("%/%");
       const data = JSON.parse(clientData[0]) as IUser;
       const subscribers = this.subscribers;
-      const index = subscribers.indexOf(event.stream.streamManager as Subscriber, 0);
+      const index = subscribers.indexOf(
+        event.stream.streamManager as Subscriber,
+        0
+      );
       if (index > -1) {
         subscribers.splice(index, 1);
         this.subscribers = subscribers;
-        const push: IEventStream = { info: data, stream: event.stream.streamManager as Subscriber };
+        const push: IEventStream = {
+          info: data,
+          stream: event.stream.streamManager as Subscriber,
+        };
         this.events.emit(Actions.REMOVE_STREAM, push);
       }
     });
@@ -91,25 +131,37 @@ class Conference {
     this.events.emit(Actions.CONNECTING, { message: "Connecting..." });
 
     this.session
-      .connect(this.token, { ...this.userInfo, clientData: this.userInfo.name || "No name" })
+      .connect(this.token, {
+        ...this.userInfo,
+        clientData: this.userInfo.name || "No name",
+      })
       .then(() => {
         this.events.emit(Actions.CONNECT_SUCCESS, { message: "Join room..." });
 
         if (this.userInfo && this.session && this.openVidu) {
-          if (checkPublishByRole(this.userInfo.role)) {
+          if (
+            typeof this.config !== "undefined" &&
+            this.config.public &&
+            typeof this.config.publicConfig !== "undefined"
+          ) {
             this.openVidu
-              .initPublisherAsync("", publishOption)
+              .initPublisherAsync("", this.config.publicConfig)
               .then((publisher) => {
                 this.publisher = publisher;
                 this.session?.publish(this.publisher).then(() => {
                   if (this.userInfo && this.publisher) {
-                    const push: IEventStream = { info: this.userInfo, stream: this.publisher };
+                    const push: IEventStream = {
+                      info: this.userInfo,
+                      stream: this.publisher,
+                    };
                     this.events.emit(Actions.ADD_STREAM, push);
                   }
                 });
               })
               .catch((error) => {
-                this.events.emit(Actions.PUBLISH_ERROR, { message: error.message });
+                this.events.emit(Actions.PUBLISH_ERROR, {
+                  message: error.message,
+                });
               });
           }
         }
@@ -120,23 +172,32 @@ class Conference {
   };
 
   retryPublish = async () => {
-    if (!this.openVidu){
-      this.initConference()
+    if (!this.openVidu) {
+      this.initConference();
     }
 
     if (this.userInfo && this.session && this.openVidu) {
-      if (checkPublishByRole(this.userInfo.role)) {
-        const devices = await this.openVidu.getDevices();
-        const videoDevice = devices.filter((i) => i.kind === "videoinput");
-        const publishOption = getOptionPublisherByRole(this.userInfo.role, { camera: videoDevice.length > 0 });
+      if (
+        typeof this.config !== "undefined" &&
+        this.config.public &&
+        typeof this.config.publicConfig !== "undefined"
+      ) {
+        // const devices = await this.openVidu.getDevices();
+        // const videoDevice = devices.filter((i) => i.kind === "videoinput");
+        // const publishOption = getOptionPublisherByRole(this.userInfo.role, {
+        //   camera: videoDevice.length > 0,
+        // });
 
         this.openVidu
-          .initPublisherAsync("", publishOption)
+          .initPublisherAsync("", this.config.publicConfig)
           .then((publisher) => {
             this.publisher = publisher;
             this.session?.publish(this.publisher).then(() => {
               if (this.userInfo && this.publisher) {
-                const push: IEventStream = { info: this.userInfo, stream: this.publisher };
+                const push: IEventStream = {
+                  info: this.userInfo,
+                  stream: this.publisher,
+                };
                 this.events.emit(Actions.ADD_STREAM, push);
               }
             });
@@ -170,10 +231,6 @@ class Conference {
     if (publisher) {
       publisher.publishVideo(val);
     }
-  };
-
-  updateToken = (token: string) => {
-    this.token = token;
   };
 
   getUserInfo = (stream: Stream): IUser | null => {

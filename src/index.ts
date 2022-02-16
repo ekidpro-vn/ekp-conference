@@ -1,4 +1,4 @@
-import Conference from "./conference";
+import Conference, { ConfigConference } from "./conference";
 export * from "./conference.type";
 export default Conference;
 
@@ -9,5 +9,5 @@ declare global {
 export function sayHello(name: string): string {
   return `Conference: Hello ${name}`;
 }
-// window["OpenVidu"] = 
+// window["OpenVidu"] =
 window["Conference"] = Conference;
