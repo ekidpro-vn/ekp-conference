@@ -45,7 +45,7 @@ class Conference {
     this.initConference();
     this.token = params.token;
     this.userInfo = params.userInfo;
-    this.config = this.config;
+    this.config = params.config;
   }
 
   updateToken = (token: string) => {
@@ -81,6 +81,7 @@ class Conference {
     // });
 
     this.session = this.openVidu.initSession();
+
     this.session.on("streamCreated", (e) => {
       const event = e as StreamEvent;
       const connectionData = event.stream.connection.data;
@@ -142,11 +143,12 @@ class Conference {
             this.config.public &&
             typeof this.config.publicConfig !== "undefined"
           ) {
+            const publicOption = {
+              ...this.config.publicConfig,
+              ...this.configDefault,
+            };
             this.openVidu
-              .initPublisherAsync("", {
-                ...this.config.publicConfig,
-                ...this.configDefault,
-              })
+              .initPublisherAsync("", publicOption)
               .then((publisher) => {
                 this.publisher = publisher;
                 this.session?.publish(this.publisher).then(() => {
@@ -169,6 +171,7 @@ class Conference {
       })
       .catch((error) => {
         this.events.emit(Actions.CONNECT_ERROR, { message: error.message });
+        this.session = undefined;
       });
   };
 
