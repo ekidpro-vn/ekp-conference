@@ -57,7 +57,7 @@ class Conference {
       return;
     }
     this.openVidu = new OpenVidu();
-    // this.openVidu.enableProdMode();
+    this.openVidu.enableProdMode();
     this.openVidu.setAdvancedConfiguration(configAdvanced);
   };
 
